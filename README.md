@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: https://startup.dev/projects/REPLACE_WITH_PROJECT_ID
+**URL**: https://startup-scheme.vercel.app/
 
 ## How can I edit this code?
 
