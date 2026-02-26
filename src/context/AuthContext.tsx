@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-export type UserRole = "student" | "admin";
+export type UserRole = "entrepreneur" | "admin";
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  provider: "password" | "google";
+  provider: "password" | "google" | "otp";
   role: UserRole;
   startupStage?: string;
   businessType?: string;
@@ -29,6 +29,9 @@ interface AuthContextValue {
   users: StoredUser[];
   loginWithEmail: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithOtp: (identifier: string, role: UserRole) => Promise<void>;
+  loginWithAdminCredentials: (username: string, password: string) => Promise<void>;
+  loginWithCredentials: (username: string, password: string) => Promise<void>;
   updateProfile: (data: {
     name: string;
     businessType: string;
@@ -86,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const upsertUser = (partial: Omit<StoredUser, "role"> & { role?: UserRole }): StoredUser => {
     const existing = users.find((u) => u.email.toLowerCase() === partial.email.toLowerCase());
-    const role: UserRole = partial.role ?? existing?.role ?? "student";
+    const role: UserRole = partial.role ?? existing?.role ?? "entrepreneur";
     const base: StoredUser = {
       id: partial.id,
       name: partial.name,
@@ -117,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       startupStage: stored?.startupStage ?? "Early Stage",
       businessType: stored?.businessType ?? "Tech",
       region: stored?.region ?? "Telangana",
-      role: storedRole ?? (isSeedAdmin ? "admin" : "student"),
+      role: storedRole ?? (isSeedAdmin ? "admin" : "entrepreneur"),
     });
 
     const authUser: AuthUser = {
@@ -140,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       startupStage: stored?.startupStage ?? "Early Stage",
       businessType: stored?.businessType ?? "Tech",
       region: stored?.region ?? "Karnataka",
-      role: stored?.role ?? "admin", // treat demo Google account as admin
+      role: stored?.role ?? "admin",
     });
 
     const authUser: AuthUser = {
@@ -148,6 +151,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       provider: "google",
     };
 
+    persistUser(authUser);
+  };
+
+  const loginWithOtp = async (identifier: string, role: UserRole) => {
+    const isEmail = identifier.includes("@");
+    const normalized = isEmail ? identifier.toLowerCase() : identifier.replace(/\s+/g, "");
+    const syntheticEmail = isEmail ? normalized : `phone-${normalized}@startupkeeper.local`;
+
+    const stored = users.find((u) => u.email === syntheticEmail);
+    const storedUser = upsertUser({
+      id: stored?.id ?? (isEmail ? `otp-${syntheticEmail}` : `otp-${normalized}`),
+      name: stored?.name ?? (isEmail ? (syntheticEmail.split("@")[0] || "Founder") : "Phone User"),
+      email: syntheticEmail,
+      startupStage: stored?.startupStage ?? "Early Stage",
+      businessType: stored?.businessType ?? "Tech",
+      region: stored?.region ?? "Telangana",
+      role: stored?.role ?? role,
+    });
+
+    const authUser: AuthUser = {
+      ...storedUser,
+      provider: "otp",
+    };
+
+    persistUser(authUser);
+  };
+
+  const loginWithAdminCredentials = async (username: string, password: string) => {
+    const res = await fetch("http://localhost:4000/api/auth/admin-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) throw new Error("Invalid admin credentials");
+    const data = await res.json();
+    const authUser: AuthUser = {
+      ...data.user,
+      provider: "password",
+      role: "admin",
+    };
+    persistUser(authUser);
+  };
+
+  const loginWithCredentials = async (username: string, password: string) => {
+    const res = await fetch("http://localhost:4000/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) throw new Error("Invalid credentials");
+    const data = await res.json();
+    const authUser: AuthUser = {
+      ...data.user,
+      provider: "password",
+    };
     persistUser(authUser);
   };
 
@@ -186,7 +244,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, users, loginWithEmail, loginWithGoogle, updateProfile, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        users,
+        loginWithEmail,
+        loginWithGoogle,
+        loginWithOtp,
+        loginWithAdminCredentials,
+        loginWithCredentials,
+        updateProfile,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

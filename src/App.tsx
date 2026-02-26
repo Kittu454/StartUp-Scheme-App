@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import RoleSelect from "./pages/RoleSelect";
+import Schemes from "./pages/Schemes";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProfilePage from "./pages/Profile";
@@ -38,11 +40,21 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/" element={<RoleSelect />} />
             <Route
-              path="/"
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/start" element={<RoleSelect />} />
+            <Route
+              path="/schemes"
+              element={
+                <ProtectedRoute>
+                  <Schemes />
                 </ProtectedRoute>
               }
             />

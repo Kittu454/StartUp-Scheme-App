@@ -44,22 +44,35 @@ const summarizeApplications = (apps: StoredApplication[]): ApplicationSummary =>
 const AdminDashboard = () => {
   const { users } = useAuth();
 
-  const studentRows = useMemo(() => {
+  const rows = useMemo(() => {
     return users
-      .filter((u) => u.role === "student")
-      .map((student) => {
-        const apps = loadApplicationsForUser(student.id);
+      .filter((u) => u.role === "entrepreneur")
+      .map((e) => {
+        const apps = loadApplicationsForUser(e.id);
         const summary = summarizeApplications(apps);
-        return { student, summary };
+        return { entrepreneur: e, summary };
       });
   }, [users]);
+
+  const bulkUpdate = (userId: string, nextStatus: ApplicationStatus) => {
+    try {
+      const apps = loadApplicationsForUser(userId);
+      const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const updated = apps.map(a =>
+        a.status === "Under Review" || a.status === "Applied"
+          ? { ...a, status: nextStatus, date: today }
+          : a,
+      );
+      window.localStorage.setItem(`startup-keeper-apps-${userId}`, JSON.stringify(updated));
+    } catch {}
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Admin Dashboard – Students Overview</CardTitle>
+            <CardTitle className="text-lg">Admin Panel – Entrepreneurs Overview</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -67,30 +80,51 @@ const AdminDashboard = () => {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Startup Stage</TableHead>
+                  <TableHead>Business Type</TableHead>
+                  <TableHead>Region</TableHead>
                   <TableHead className="text-center">Applied</TableHead>
                   <TableHead className="text-center">Under Review</TableHead>
                   <TableHead className="text-center">Approved</TableHead>
                   <TableHead className="text-center">Rejected</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {studentRows.length === 0 && (
+                {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">
-                      No student accounts found yet.
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">
+                      No entrepreneur accounts found yet.
                     </TableCell>
                   </TableRow>
                 )}
-                {studentRows.map(({ student, summary }) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium">{student.name}</TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.startupStage ?? "—"}</TableCell>
+                {rows.map(({ entrepreneur, summary }) => (
+                  <TableRow key={entrepreneur.id}>
+                    <TableCell className="font-medium">{entrepreneur.name}</TableCell>
+                    <TableCell>{entrepreneur.email}</TableCell>
+                    <TableCell>{entrepreneur.businessType ?? "—"}</TableCell>
+                    <TableCell>{entrepreneur.region ?? "—"}</TableCell>
                     <TableCell className="text-center">{summary.applied}</TableCell>
                     <TableCell className="text-center">{summary.underReview}</TableCell>
                     <TableCell className="text-center">{summary.approved}</TableCell>
                     <TableCell className="text-center">{summary.rejected}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          className="h-8 px-3 rounded-md border text-xs"
+                          onClick={() => bulkUpdate(entrepreneur.id, "Approved")}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          className="h-8 px-3 rounded-md border text-xs"
+                          onClick={() => bulkUpdate(entrepreneur.id, "Rejected")}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
